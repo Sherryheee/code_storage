@@ -1,0 +1,52 @@
+import numpy as np
+from sklearn.datasets import make_regression
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import Lasso
+from sklearn.svm import SVR
+from xgboost import XGBRegressor
+from tensorflow.keras.layers import Input, Dense, Attention
+from tensorflow.keras.models import Model
+
+# 创建一个简单的数据集作为示例
+X, y = make_regression(n_samples=1000, n_features=30, n_targets=6, noise=0.1, random_state=42)
+
+# 划分训练集和测试集
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 训练三个回归器：XGBoost、SVR、Lasso
+xgb_model = XGBRegressor()
+xgb_model.fit(X_train, y_train)
+
+svr_model = SVR()
+svr_model.fit(X_train, y_train)
+
+lasso_model = Lasso()
+lasso_model.fit(X_train, y_train)
+
+# 获取三个回归器的预测值
+xgb_pred = xgb_model.predict(X_test)
+svr_pred = svr_model.predict(X_test)
+lasso_pred = lasso_model.predict(X_test)
+
+# 合并三个模型的预测结果
+combined_predictions = np.concatenatexgb_pred, svr_pred, lasso_pred), axis=1)
+
+# 定义注意力机制模型
+input_layer = Input(shape=(combined_predictions.shape[1],))
+attention = Attention()
+attention_output = attention(input_layer)
+output_layer = Dense(6)(attention_output)  # 输出维度为 6，即 6 个目标值
+attention_model = Model(inputs=input_layer, outputs=output_layer)
+
+# 编译模型
+attention_model.compile(optimizer='adam', loss='mean_squared_error')
+
+# 训练注意力机制模型
+attention_model.fit(combined_predictions, y_train, epochs=10, batch_size=32, validation_split=0.2)
+
+# 在测试集上进行预测
+predictions = attention_model.predict(combined_predictions)
+
+# 计算加权平均 RMSE
+arrmse = np.sqrt(np.mean(np.square(predictions - y_test)))
+print("ARRMSE:", arrmse)
